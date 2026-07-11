@@ -80,6 +80,3 @@ Docker Compose will build the images and start the services. The frontend waits 
 - Backend API docs (Swagger): http://localhost:8000/docs
 
 ---
-
-If you want, I can run the start script or verify the `.env` variables next.
-

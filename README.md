@@ -1,6 +1,8 @@
 
 # Corporate PDF RAG Assistant
 
+![PDF Assistant screenshot](images/image.png.jpg)
+
 A fully containerized Retrieval-Augmented Generation (RAG) application that lets you upload PDF documents, indexes their contents locally using semantic embeddings, and uses the Google Gemini API to answer natural language queries against the document text.
 
 ---

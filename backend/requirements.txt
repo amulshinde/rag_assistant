@@ -1,0 +1,21 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+fastapi==0.110.0
+uvicorn==0.28.0
+python-multipart==0.0.9
+torch==2.3.1+cpu
+transformers<5.0.0      # <-- Add this line to pin the safe version
+sentence-transformers
+faiss-cpu
+pypdf
+google-genai
+numpy
+PyPDF2
+pydantic
+python-dotenv
+
+
+
+
+
+
+

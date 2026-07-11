@@ -1,0 +1,14 @@
+# Credentials and Secrets
+.env
+
+# Local Cache and Vector Data
+backend/__pycache__/
+frontend/__pycache__/
+**/cache/
+/tmp/rag_uploads/
+/tmp/rag_cache/
+
+# OS/IDE metadata
+.DS_Store
+.vscode/
+.idea/

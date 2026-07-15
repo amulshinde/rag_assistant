@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import StreamingResponse
 from sentence_transformers import SentenceTransformer
 
 # Import your exact local utils and config
@@ -57,7 +58,7 @@ async def generate_embeddings(file: UploadFile = File(...)):
                         "no extractable text. Please upload a text-based PDF (not a scan)."
                     ),
                 )
-            chunks = split_into_chunks(text, chunk_size=500, overlap=100)
+            chunks = split_into_chunks(text, chunk_size=250, overlap=100)
             index, embeddings = build_faiss_index(chunks, model)
             save_rag_artifacts(pdf_file, chunks, embeddings, index, CACHE_DIR)
 
@@ -105,14 +106,15 @@ async def process_rag(
             top_k=3
         )
 
-        answer = ask_gemini(
-            query,
-            result["context"]
-        )
+        # answer = ask_gemini(
+        #     query,
+        #     result["context"]
+        # )
 
-        return {
-            "answer": answer
-        }
+        return StreamingResponse(
+                                    ask_gemini(query, result["context"]),
+                                    media_type="text/plain"
+                                )
 
     except HTTPException:
         raise

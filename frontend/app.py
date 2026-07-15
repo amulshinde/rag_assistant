@@ -1,38 +1,40 @@
-import streamlit as st
 import requests
+import streamlit as st
+
+from streaming_utils import iter_response_chunks
 
 # ---------------------------------------------------------
-# PAGE CONFIG
+# CONFIG
 # ---------------------------------------------------------
-st.set_page_config(
-    page_title="PDF RAG Assistant",
-    layout="wide"
-)
 
 BACKEND_URL = "http://backend:8000"
+
+st.set_page_config(
+    page_title="PDF RAG Assistant",
+    page_icon="📄",
+    layout="wide"
+)
 
 # ---------------------------------------------------------
 # SESSION STATE
 # ---------------------------------------------------------
+
 if "pdf_name" not in st.session_state:
     st.session_state.pdf_name = None
-
-if "answer" not in st.session_state:
-    st.session_state.answer = ""
-
-if "last_query" not in st.session_state:
-    st.session_state.last_query = ""
 
 if "uploaded_filename" not in st.session_state:
     st.session_state.uploaded_filename = None
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ---------------------------------------------------------
 # SIDEBAR
 # ---------------------------------------------------------
+
 with st.sidebar:
 
-    st.header("📄 Document Center")
+    st.title("📄 Document Center")
 
     uploaded_file = st.file_uploader(
         "Upload PDF",
@@ -41,12 +43,12 @@ with st.sidebar:
 
     if uploaded_file:
 
-        st.success(f"✓ {uploaded_file.name}")
+        st.success(uploaded_file.name)
 
-        # New document uploaded
+        # Upload only when a new document is selected
         if uploaded_file.name != st.session_state.uploaded_filename:
 
-            with st.spinner("Generating Embeddings..."):
+            with st.spinner("Generating embeddings..."):
 
                 try:
 
@@ -68,21 +70,24 @@ with st.sidebar:
                         data = response.json()
 
                         st.session_state.pdf_name = data["filename"]
+
                         st.session_state.uploaded_filename = uploaded_file.name
 
                         # Clear previous conversation
-                        st.session_state.answer = ""
-                        st.session_state.last_query = ""
+                        st.session_state.messages = []
 
-                        st.success("Embeddings Ready ✅")
+                        st.success("Embeddings generated successfully.")
 
                     else:
+
                         st.error(response.text)
 
                 except Exception as e:
+
                     st.error(e)
 
     else:
+
         st.info("Upload a PDF to begin.")
 
 # ---------------------------------------------------------
@@ -91,80 +96,54 @@ with st.sidebar:
 
 st.title("🤖 PDF RAG Assistant")
 
-st.write("Ask questions about your uploaded PDF.")
+st.caption("Ask questions about your uploaded document.")
 
 # ---------------------------------------------------------
-# Display Latest Answer
+# Display Chat History
 # ---------------------------------------------------------
 
-if st.session_state.answer:
+for message in st.session_state.messages:
 
-    st.subheader("💡 Answer")
+    with st.chat_message(message["role"]):
 
-    st.info(st.session_state.answer)
+        st.markdown(message["content"])
 
-    st.caption(
-        f"Question : {st.session_state.last_query}"
-    )
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# Question Box
-# ---------------------------------------------------------
-
-query = st.text_input(
-    "Ask Question",
-    placeholder="e.g. Summarize Chapter 2"
-)
-
-submit = st.button(
-    "Submit Query",
-    type="primary",
-    use_container_width=True
-)
-
-# ---------------------------------------------------------
-# Query
-# ---------------------------------------------------------
-
-if submit:
+if prompt := st.chat_input("Ask a question about the document..."):
 
     if st.session_state.pdf_name is None:
-
         st.error("Please upload a PDF first.")
+        st.stop()
 
-    elif not query.strip():
+    st.session_state.messages.append(
+        {"role": "user", "content": prompt}
+    )
 
-        st.warning("Please enter a question.")
+    with st.chat_message("user",  avatar="🧑"):
+        st.markdown(prompt)
 
-    else:
+    with st.chat_message("assistant", avatar="🤖"):
 
-        with st.spinner("Searching..."):
-
-            try:
-
-                data = {
+        try:
+            response = requests.post(
+                f"{BACKEND_URL}/query",
+                data={
                     "filename": st.session_state.pdf_name,
-                    "query": query
-                }
+                    "query": prompt
+                },
+                stream=True,
+                timeout=60
+            )
+            response.raise_for_status()
 
-                response = requests.post(
-                    f"{BACKEND_URL}/query",
-                    data=data
-                )
+            full_response = st.write_stream(iter_response_chunks(response))
 
-                if response.status_code == 200:
+        except Exception as exc:
+            full_response = f"Sorry, I could not stream the response. Error: {exc}"
+            st.error(full_response)
 
-                    st.session_state.answer = response.json()["answer"]
-                    st.session_state.last_query = query
-
-                    st.rerun()
-
-                else:
-
-                    st.error(response.text)
-
-            except Exception as e:
-
-                st.error(e)
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": full_response
+        }
+    )
